@@ -799,13 +799,21 @@ const prefixUnsupportedCT = "unsupported content type"
 // The function returns ParseError when a body is invalid.
 func decodeBody(body io.Reader, header http.Header, schema *openapi3.SchemaRef, encFn EncodingFn) (interface{}, error) {
 	contentType := header.Get(headerCT)
+	if contentType == "" {
+		switch body.(type) {
+		case *multipart.Part:
+			contentType = "text/plain"
+			break
+		}
+	}
 	mediaType := parseMediaType(contentType)
 	decoder, ok := bodyDecoders[mediaType]
 	if !ok {
-		return nil, &ParseError{
-			Kind:   KindUnsupportedFormat,
-			Reason: fmt.Sprintf("%s %q", prefixUnsupportedCT, mediaType),
-		}
+		decoder, _ = bodyDecoders["application/octet-stream"]
+		//return nil, &ParseError{
+		//	Kind:   KindUnsupportedFormat,
+		//	Reason: fmt.Sprintf("%s %q", prefixUnsupportedCT, mediaType),
+		//}
 	}
 	value, err := decoder(body, header, schema, encFn)
 	if err != nil {
